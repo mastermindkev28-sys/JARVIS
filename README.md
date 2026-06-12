@@ -27,6 +27,19 @@ python3 -m http.server 8000
 > permission (and a `localhost` or `https` origin). Voice *output* (JARVIS
 > speaking) works in most modern browsers.
 
+### Getting the most JARVIS-like voice
+
+JARVIS automatically picks the most British-butler voice your system has,
+and the **VOCAL PROFILE** dropdown in the console lets you audition the
+rest (your choice is remembered). Best options by browser:
+
+- **Microsoft Edge** — *Ryan (Natural)*, a UK neural voice and easily the
+  closest to the films. Edge ships it by default; JARVIS auto-selects it.
+- **Chrome** — *Google UK English Male* (requires being online).
+- **macOS/iOS** — *Daniel* (enable more voices in System Settings →
+  Accessibility → Spoken Content).
+- **Windows** — add UK voices via Settings → Time & Language → Speech.
+
 ## Talk to JARVIS
 
 Click the arc reactor (or the **ENGAGE VOICE INTERFACE** button) and try:

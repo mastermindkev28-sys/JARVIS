@@ -223,19 +223,69 @@ function weatherReport() {
 setInterval(() => refreshWeather(false), 10 * 60 * 1000); // refresh every 10 min
 
 /* ---------- voice: speech synthesis ---------- */
+// Ranked by closeness to JARVIS (calm, refined British male). The Edge
+// "Ryan (Natural)" neural voice is by far the best match, followed by
+// Chrome's "Google UK English Male" and Apple's "Daniel".
+const VOICE_PREFS = [
+  /ryan.*(natural|online)/i,
+  /thomas.*(natural|online)/i,
+  /google uk english male/i,
+  /\bdaniel\b/i,
+  /\barthur\b/i,
+  /\bgeorge\b/i,
+  /\boliver\b/i,
+];
+
+let voiceList = [];
+let chosenVoice = null;
+
+function scoreVoice(v) {
+  for (let i = 0; i < VOICE_PREFS.length; i++)
+    if (VOICE_PREFS[i].test(v.name)) return 1000 - i * 10;
+  let s = 0;
+  if (/en[-_]GB/i.test(v.lang)) s += 50;
+  if (/natural|neural|online/i.test(v.name)) s += 25;
+  if (/male/i.test(v.name) && !/female/i.test(v.name)) s += 20;
+  return s;
+}
+
+function loadVoices() {
+  voiceList = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang));
+  if (!voiceList.length) return;
+  voiceList.sort((a, b) => scoreVoice(b) - scoreVoice(a));
+  const saved = localStorage.getItem("jarvis-voice");
+  chosenVoice = voiceList.find((v) => v.name === saved) || voiceList[0];
+
+  const sel = $("voice-select");
+  sel.innerHTML = "";
+  voiceList.forEach((v) => {
+    const opt = document.createElement("option");
+    opt.textContent = v.name;
+    opt.selected = v === chosenVoice;
+    sel.appendChild(opt);
+  });
+}
+
+$("voice-select").addEventListener("change", (e) => {
+  const v = voiceList.find((x) => x.name === e.target.value);
+  if (!v) return;
+  chosenVoice = v;
+  localStorage.setItem("jarvis-voice", v.name);
+  speak("Vocal profile calibrated, sir. How do I sound?");
+});
+
 function speak(text) {
   $("jarvis-line").textContent = text;
   if (!("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  const voices = speechSynthesis.getVoices();
-  // prefer a British male voice for authenticity
-  u.voice =
-    voices.find((v) => /en[-_]GB/i.test(v.lang) && /male|daniel|arthur/i.test(v.name)) ||
-    voices.find((v) => /en[-_]GB/i.test(v.lang)) ||
-    voices.find((v) => /^en/i.test(v.lang)) || null;
-  u.rate = 1.02;
-  u.pitch = 0.85;
+  if (chosenVoice) u.voice = chosenVoice;
+  // JARVIS delivery: measured pace, slightly lowered pitch. Neural
+  // "Natural" voices sound artificial when pitch-shifted, so leave
+  // those at their native pitch.
+  const neural = chosenVoice && /natural|neural|online/i.test(chosenVoice.name);
+  u.rate = 0.95;
+  u.pitch = neural ? 1.0 : 0.8;
   speechSynthesis.speak(u);
 }
 
@@ -430,7 +480,11 @@ setInterval(() => {
 }, 8000);
 
 /* ---------- go ---------- */
-// Chrome loads voices asynchronously; warm them up before the greeting.
-if ("speechSynthesis" in window) speechSynthesis.getVoices();
+// Voices load asynchronously in Chrome/Edge; pick the best one as soon
+// as the list is available (and again if it changes).
+if ("speechSynthesis" in window) {
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
 refreshWeather(false);
 runBoot();

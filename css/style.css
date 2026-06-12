@@ -186,6 +186,20 @@ canvas.wave { display: block; width: 100%; margin-top: 8px; opacity: 0.95; }
 }
 .tag.you { color: var(--cyan); }
 
+.voice-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 6px; font-size: 10px; letter-spacing: 2px;
+}
+.voice-row label { color: var(--cyan-bright); white-space: nowrap; }
+#voice-select {
+  flex: 1; min-width: 0;
+  background: rgba(57,196,232,0.08); color: var(--cyan-bright);
+  border: 1px solid var(--cyan-dim); border-radius: 2px;
+  font-family: var(--font); font-size: 10px; padding: 3px 4px;
+  cursor: pointer;
+}
+#voice-select option { background: #06222e; color: var(--cyan-bright); }
+
 #mic-btn {
   width: 100%; margin-top: 8px; padding: 8px;
   background: rgba(57,196,232,0.08); color: var(--cyan-bright);
