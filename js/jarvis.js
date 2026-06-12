@@ -209,7 +209,6 @@ function makeWave(canvasId, opts) {
 }
 
 makeWave("wave-cpu",   { mode: "noisy" });
-makeWave("wave-mem",   { mode: "sine", speed: 0.07 });
 makeWave("wave-temp",  { mode: "sine", speed: 0.05 });
 makeWave("wave-radar", { mode: "noisy", color: "#5dff9d", speed: 0.09 });
 
@@ -219,10 +218,18 @@ makeWave("wave-radar", { mode: "noisy", color: "#5dff9d", speed: 0.09 });
 // route fails, run a marked random-walk simulation so the panels stay
 // alive.
 const MARKETS = [
-  { sym: "MGC=F", id: "mgc", spoken: "Micro Gold" },
-  { sym: "MNQ=F", id: "mnq", spoken: "Micro NASDAQ" },
+  { sym: "MGC=F", id: "mgc", spoken: "Micro Gold", type: "yahoo" },
+  { sym: "MNQ=F", id: "mnq", spoken: "Micro NASDAQ", type: "yahoo" },
+  { sym: "SOLUSDT", id: "sol", spoken: "Solana", type: "crypto" },
 ];
 const marketData = {}; // id -> { price, chg, pct, live }
+
+function fetchJSON(url, timeout = 8000) {
+  return fetch(url, { signal: AbortSignal.timeout(timeout) }).then((r) => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  });
+}
 
 function drawSpark(canvasId, closes, up) {
   const ctx = $(canvasId).getContext("2d");
@@ -242,18 +249,21 @@ function drawSpark(canvasId, closes, up) {
   ctx.stroke();
 }
 
-async function fetchQuote(sym) {
+async function fetchYahoo(sym) {
+  // Yahoo blocks browser CORS, so route through public CORS proxies,
+  // trying each with a hard timeout until one answers.
   const api = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=5m&range=1d`;
   const routes = [
-    api,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(api)}`,
-    `https://corsproxy.io/?url=${encodeURIComponent(api)}`,
+    () => fetchJSON(`https://corsproxy.io/?url=${encodeURIComponent(api)}`),
+    () => fetchJSON(`https://api.allorigins.win/raw?url=${encodeURIComponent(api)}`),
+    () => fetchJSON(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(api)}`),
+    async () =>
+      JSON.parse((await fetchJSON(`https://api.allorigins.win/get?url=${encodeURIComponent(api)}`)).contents),
+    () => fetchJSON(api),
   ];
-  for (const url of routes) {
+  for (const route of routes) {
     try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const res = (await r.json()).chart.result[0];
+      const res = (await route()).chart.result[0];
       const closes = (res.indicators.quote[0].close || []).filter((v) => v != null);
       const price = res.meta.regularMarketPrice ?? closes[closes.length - 1];
       const prev = res.meta.chartPreviousClose ?? res.meta.previousClose ?? closes[0];
@@ -261,6 +271,27 @@ async function fetchQuote(sym) {
     } catch { /* try next route */ }
   }
   throw new Error("all market routes failed");
+}
+
+async function fetchCrypto(sym) {
+  // Binance and CoinGecko both allow direct browser CORS — no proxies.
+  try {
+    const base = "https://api.binance.com/api/v3";
+    const [t, k] = await Promise.all([
+      fetchJSON(`${base}/ticker/24hr?symbol=${sym}`),
+      fetchJSON(`${base}/klines?symbol=${sym}&interval=15m&limit=96`),
+    ]);
+    return {
+      price: +t.lastPrice,
+      prev: +t.lastPrice - +t.priceChange,
+      closes: k.map((c) => +c[4]),
+    };
+  } catch { /* fall through to CoinGecko */ }
+  const d = await fetchJSON(
+    "https://api.coingecko.com/api/v3/coins/solana/market_chart?vs_currency=usd&days=1"
+  );
+  const closes = d.prices.map((p) => p[1]);
+  return { price: closes[closes.length - 1], prev: closes[0], closes };
 }
 
 function renderMarket(m, price, prev, closes, live) {
@@ -271,11 +302,12 @@ function renderMarket(m, price, prev, closes, live) {
   const el = $(m.id + "-chg");
   el.textContent = `${sign}${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
   el.className = "market-chg " + (chg >= 0 ? "up" : "down");
-  $(m.id + "-src").textContent = live ? "● LIVE" : "SIM — UPLINK OFFLINE";
+  const stamp = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  $(m.id + "-src").textContent = live ? `● LIVE ${stamp}` : "SIM — UPLINK OFFLINE";
   drawSpark("chart-" + m.id, closes, chg >= 0);
 }
 
-const simSeeds = { mgc: 2350, mnq: 21500 };
+const simSeeds = { mgc: 2350, mnq: 21500, sol: 150 };
 function simMarket(m) {
   const base = simSeeds[m.id];
   const closes = [base];
@@ -285,14 +317,17 @@ function simMarket(m) {
 }
 
 async function refreshMarkets() {
-  for (const m of MARKETS) {
-    try {
-      const { price, prev, closes } = await fetchQuote(m.sym);
-      renderMarket(m, price, prev, closes, true);
-    } catch {
-      if (!marketData[m.id]) simMarket(m); // keep last live data if a refresh hiccups
-    }
-  }
+  await Promise.allSettled(
+    MARKETS.map(async (m) => {
+      try {
+        const fetcher = m.type === "crypto" ? fetchCrypto : fetchYahoo;
+        const { price, prev, closes } = await fetcher(m.sym);
+        renderMarket(m, price, prev, closes, true);
+      } catch {
+        if (!marketData[m.id]) simMarket(m); // keep last live data if a refresh hiccups
+      }
+    })
+  );
 }
 setInterval(refreshMarkets, 60 * 1000);
 refreshMarkets();
@@ -664,8 +699,9 @@ function respond(query) {
   // markets (checked before "mark"/suit patterns)
   if (/\bgold\b|mgc/.test(q)) return marketLine("mgc", "Micro Gold");
   if (/nasdaq|mnq/.test(q)) return marketLine("mnq", "Micro NASDAQ");
+  if (/\bsol\b|solana|crypto/.test(q)) return marketLine("sol", "Solana");
   if (/market|trading|portfolio|futures/.test(q))
-    return marketLine("mgc", "Micro Gold") + " " + marketLine("mnq", "Micro NASDAQ");
+    return [marketLine("mgc", "Micro Gold"), marketLine("mnq", "Micro NASDAQ"), marketLine("sol", "Solana")].join(" ");
 
   // arithmetic ("what is 12 times 8")
   const math = parseMath(q);

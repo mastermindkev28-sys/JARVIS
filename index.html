@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>J.A.R.V.I.S. OS</title>
-<link rel="stylesheet" href="css/style.css?v=6">
+<link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
 
@@ -70,17 +70,21 @@
           </div>
           <canvas class="wave tall" id="chart-mnq" width="220" height="56"></canvas>
         </div>
-        <div class="panel">
-          <h3>CPU CORE</h3>
-          <div class="gauge"><div class="gauge-fill" id="cpu-bar"></div></div>
-          <div class="readout"><span id="cpu-val">0</span>% LOAD</div>
-          <canvas class="wave" id="wave-cpu" width="220" height="48"></canvas>
+        <div class="panel market-panel">
+          <h3>SOL · SOLANA <span class="mkt-src" id="sol-src">SIM</span></h3>
+          <div class="market-row">
+            <span class="market-price" id="sol-price">—</span>
+            <span class="market-chg" id="sol-chg">—</span>
+          </div>
+          <canvas class="wave tall" id="chart-sol" width="220" height="56"></canvas>
         </div>
         <div class="panel">
-          <h3>MEMORY</h3>
+          <h3>SYSTEM LOAD</h3>
+          <div class="readout"><span id="cpu-val">0</span>% CPU</div>
+          <div class="gauge"><div class="gauge-fill" id="cpu-bar"></div></div>
+          <div class="readout"><span id="mem-val">0</span>% MEMORY</div>
           <div class="gauge"><div class="gauge-fill" id="mem-bar"></div></div>
-          <div class="readout"><span id="mem-val">0</span>% ALLOCATED</div>
-          <canvas class="wave" id="wave-mem" width="220" height="48"></canvas>
+          <canvas class="wave" id="wave-cpu" width="220" height="48"></canvas>
         </div>
       </aside>
 
@@ -166,6 +170,6 @@
     </footer>
   </main>
 
-  <script src="js/jarvis.js?v=6"></script>
+  <script src="js/jarvis.js?v=7"></script>
 </body>
 </html>
