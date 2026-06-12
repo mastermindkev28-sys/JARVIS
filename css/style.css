@@ -200,6 +200,34 @@ canvas.wave { display: block; width: 100%; margin-top: 8px; opacity: 0.95; }
 .temp-big { font-size: 42px; color: var(--cyan-bright); text-shadow: var(--glow); }
 .weather-desc { font-size: 15px; letter-spacing: 3px; margin-bottom: 8px; }
 .weather-meta { list-style: none; font-size: 11px; line-height: 1.8; opacity: 0.9; }
+.weather-src { margin-top: 6px; font-size: 9px; letter-spacing: 2px; opacity: 0.55; }
+
+/* ================= RED ALERT MODE ================= */
+body.alert {
+  --cyan: #ff4d4d;
+  --cyan-bright: #ffb3b3;
+  --cyan-dim: #8a1a1a;
+  --bg-panel: rgba(44, 8, 8, 0.55);
+  --glow: 0 0 8px rgba(255, 77, 77, 0.7), 0 0 22px rgba(255, 77, 77, 0.25);
+  background-image:
+    radial-gradient(circle at 50% 45%, rgba(255,77,77,0.12), transparent 55%),
+    linear-gradient(rgba(255,77,77,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,77,77,0.06) 1px, transparent 1px);
+  animation: alert-flash 1.6s ease-in-out infinite;
+}
+body.alert .reactor-core {
+  background: radial-gradient(circle, #fff0f0 0%, #ffb3b3 30%, #ff4d4d 60%, #520a0a 100%);
+  box-shadow: 0 0 40px rgba(255,77,77,0.9), 0 0 120px rgba(255,77,77,0.45),
+              inset 0 0 30px rgba(255,255,255,0.8);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+body.alert .ring-dash circle { stroke: #ff4d4d; }
+body.alert .ring-arc circle  { stroke: #ffb3b3; }
+body.alert .ring-inner circle { stroke: #ff4d4d; }
+@keyframes alert-flash {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.18); }
+}
 
 /* ================= TICKER ================= */
 .ticker { overflow: hidden; white-space: nowrap; padding: 8px 0; }

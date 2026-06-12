@@ -143,6 +143,85 @@ makeWave("wave-audio", { mode: "sine", speed: 0.22, color: "#9beaff" });
 makeWave("wave-temp",  { mode: "sine", speed: 0.05 });
 makeWave("wave-radar", { mode: "noisy", color: "#5dff9d", speed: 0.09 });
 
+/* ---------- live weather (Open-Meteo, no API key) ---------- */
+const WMO_CODES = {
+  0: "Clear", 1: "Mostly Clear", 2: "Partly Cloudy", 3: "Overcast",
+  45: "Fog", 48: "Icy Fog", 51: "Light Drizzle", 53: "Drizzle", 55: "Heavy Drizzle",
+  56: "Freezing Drizzle", 57: "Freezing Drizzle", 61: "Light Rain", 63: "Rain",
+  65: "Heavy Rain", 66: "Freezing Rain", 67: "Freezing Rain", 71: "Light Snow",
+  73: "Snow", 75: "Heavy Snow", 77: "Snow Grains", 80: "Light Showers",
+  81: "Showers", 82: "Heavy Showers", 85: "Snow Showers", 86: "Snow Showers",
+  95: "Thunderstorm", 96: "Thunderstorm + Hail", 99: "Thunderstorm + Hail",
+};
+
+const weather = { live: false, city: "", desc: "Fair", temp: 21, humidity: 44, wind: 8 };
+
+function compass(deg) {
+  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+function getLocation() {
+  // Try browser geolocation first (5s budget), then fall back to IP lookup.
+  const byGPS = new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject();
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, city: "" }),
+      reject, { timeout: 5000 }
+    );
+  });
+  const byIP = () =>
+    fetch("https://ipapi.co/json/")
+      .then((r) => r.json())
+      .then((d) => ({ lat: d.latitude, lon: d.longitude, city: d.city || "" }));
+  return byGPS.catch(byIP);
+}
+
+async function refreshWeather(announce) {
+  try {
+    const loc = await getLocation();
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}` +
+      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,` +
+      `wind_speed_10m,wind_direction_10m,surface_pressure&daily=sunrise,sunset&timezone=auto`;
+    const data = await (await fetch(url)).json();
+    const c = data.current;
+
+    weather.live = true;
+    weather.city = loc.city;
+    weather.desc = WMO_CODES[c.weather_code] || "Unknown";
+    weather.temp = Math.round(c.temperature_2m);
+    weather.humidity = Math.round(c.relative_humidity_2m);
+    weather.wind = Math.round(c.wind_speed_10m);
+
+    $("temp").textContent = weather.temp;
+    $("weather-desc").textContent = weather.desc;
+    $("humidity").textContent = weather.humidity;
+    $("feels").textContent = Math.round(c.apparent_temperature);
+    $("wind").textContent = `${weather.wind} km/h (${compass(c.wind_direction_10m)})`;
+    $("pressure").textContent = c.surface_pressure.toFixed(1);
+    const fmtTime = (iso) =>
+      new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    $("sunrise").textContent = fmtTime(data.daily.sunrise[0]);
+    $("sunset").textContent = fmtTime(data.daily.sunset[0]);
+    $("weather-loc").textContent = loc.city ? loc.city.toUpperCase() : "LOCAL CONDITIONS";
+    $("weather-src").textContent = "LIVE SATELLITE FEED — OPEN-METEO";
+
+    if (announce) speak(weatherReport());
+  } catch (e) {
+    $("weather-src").textContent = "SIMULATED DATA — UPLINK UNAVAILABLE";
+    if (announce) speak("I'm afraid the weather uplink is unavailable, sir. Displaying cached atmospheric data.");
+  }
+}
+
+function weatherReport() {
+  const where = weather.city ? ` in ${weather.city}` : "";
+  return `Current conditions${where}: ${weather.desc.toLowerCase()}, ${weather.temp} degrees, ` +
+         `${weather.humidity} percent humidity, wind at ${weather.wind} kilometers per hour.`;
+}
+
+setInterval(() => refreshWeather(false), 10 * 60 * 1000); // refresh every 10 min
+
 /* ---------- voice: speech synthesis ---------- */
 function speak(text) {
   $("jarvis-line").textContent = text;
@@ -166,12 +245,102 @@ function greet() {
   speak(`Good ${part}, sir. All systems are online and functioning within normal parameters.`);
 }
 
+/* ---------- alert mode ---------- */
+let alertMode = false;
+function setAlert(on) {
+  alertMode = on;
+  document.body.classList.toggle("alert", on);
+  $("sys-status").textContent = on ? "⚠ RED ALERT — DEFENSE PROTOCOLS ACTIVE" : "ALL SYSTEMS NOMINAL";
+  const threat = $("threat");
+  threat.textContent = on ? "HOSTILES DETECTED — WEAPONS HOT" : "NO HOSTILES DETECTED";
+  threat.classList.toggle("alert", on);
+  threat.classList.toggle("ok", !on);
+}
+
+/* ---------- timers ---------- */
+function parseTimer(q) {
+  const m = q.match(/timer.*?(\d+)\s*(second|minute|hour)/) || q.match(/(\d+)\s*(second|minute|hour).*timer/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  const ms = n * { second: 1000, minute: 60000, hour: 3600000 }[m[2]];
+  setTimeout(() => {
+    speak(`Sir, your ${n} ${m[2]}${n > 1 ? "s" : ""} timer has elapsed.`);
+  }, ms);
+  return `Timer set for ${n} ${m[2]}${n > 1 ? "s" : ""}, sir. I shall notify you.`;
+}
+
+/* ---------- arithmetic ---------- */
+function parseMath(q) {
+  const norm = q
+    .replace(/\bplus\b/g, "+").replace(/\bminus\b/g, "-")
+    .replace(/\b(times|multiplied by|x)\b/g, "*").replace(/\bdivided by\b|\bover\b/g, "/");
+  const m = norm.match(/(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const [, a, op, b] = m;
+  const x = parseFloat(a), y = parseFloat(b);
+  if (op === "/" && y === 0) return "Even I cannot divide by zero, sir.";
+  const r = { "+": x + y, "-": x - y, "*": x * y, "/": x / y }[op];
+  return `That would be ${parseFloat(r.toFixed(4))}, sir.`;
+}
+
+/* ---------- self destruct ---------- */
+function selfDestruct() {
+  let n = 5;
+  setAlert(true);
+  const tick = () => {
+    if (n > 0) {
+      speak(`${n}`);
+      n--; setTimeout(tick, 1100);
+    } else {
+      setAlert(false);
+      speak("Self-destruct cancelled. You really should stop testing that one, sir.");
+    }
+  };
+  setTimeout(tick, 1500);
+  return "Self-destruct sequence initiated. Counting down.";
+}
+
 /* ---------- voice: command handling ---------- */
 function respond(query) {
   const q = query.toLowerCase();
   const t = telemetry;
   const now = new Date();
 
+  // actions first
+  if (/red alert|battle stations|defense protocol|intruder/.test(q)) {
+    setAlert(true);
+    return "Red alert, sir. Defense protocols engaged. All weapons systems online.";
+  }
+  if (/stand down|all clear|cancel alert|disengage/.test(q)) {
+    setAlert(false);
+    return "Standing down, sir. Returning all systems to nominal.";
+  }
+  if (/self.?destruct/.test(q)) return selfDestruct();
+  if (/timer/.test(q)) return parseTimer(q) || "Please specify a duration, sir. For example: set a timer for five minutes.";
+  if (/full.?screen/.test(q)) {
+    document.documentElement.requestFullscreen?.();
+    return "Engaging full immersion mode, sir.";
+  }
+  if (/search (?:the web |google )?for (.+)/.test(q)) {
+    const term = q.match(/search (?:the web |google )?for (.+)/)[1];
+    window.open(`https://www.google.com/search?q=${encodeURIComponent(term)}`, "_blank");
+    return `Searching the web for ${term}, sir.`;
+  }
+  if (/open (youtube|google|github|wikipedia)/.test(q)) {
+    const site = q.match(/open (youtube|google|github|wikipedia)/)[1];
+    window.open(`https://www.${site}.${site === "wikipedia" ? "org" : "com"}`, "_blank");
+    return `Opening ${site}, sir.`;
+  }
+  if (/refresh weather|update weather/.test(q)) {
+    refreshWeather(true);
+    return "Contacting the weather satellites now, sir.";
+  }
+
+  // arithmetic ("what is 12 times 8")
+  const math = parseMath(q);
+  if (math && /what is|what's|calculate|compute|how much/.test(q)) return math;
+
+  // information
   if (/\btime\b/.test(q))
     return `The time is ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}, sir.`;
   if (/\bdate\b|\bday\b/.test(q))
@@ -180,10 +349,14 @@ function respond(query) {
     return `Diagnostics complete. CPU at ${t.cpu.toFixed(0)} percent, memory at ${t.mem.toFixed(0)} percent, core temperature ${t.temp.toFixed(0)} degrees. All systems nominal, sir.`;
   if (/power|reactor|energy/.test(q))
     return `The arc reactor is stable and producing ${t.power.toFixed(2)} gigawatts. More than enough to keep the lights on, sir.`;
-  if (/weather|temperature outside/.test(q))
-    return `Current conditions are fair, ${$("temp").textContent} degrees with ${$("humidity").textContent} percent humidity.`;
+  if (/weather|temperature outside|forecast/.test(q))
+    return weather.live
+      ? weatherReport()
+      : "The weather uplink is offline, sir. Cached data shows fair conditions.";
   if (/threat|hostile|danger/.test(q))
-    return `Scanning... no hostiles detected within the perimeter. You may relax, sir.`;
+    return alertMode
+      ? "Hostiles detected, sir. Might I suggest the Mark 42?"
+      : "Scanning... no hostiles detected within the perimeter. You may relax, sir.";
   if (/who are you|your name/.test(q))
     return `I am JARVIS — Just A Rather Very Intelligent System. At your service, sir.`;
   if (/hello|hi |hey/.test(q))
@@ -252,10 +425,12 @@ const STATUSES = [
   "OPTIMIZING POWER DISTRIBUTION",
 ];
 setInterval(() => {
+  if (alertMode) return;
   $("sys-status").textContent = STATUSES[Math.floor(Math.random() * STATUSES.length)];
 }, 8000);
 
 /* ---------- go ---------- */
 // Chrome loads voices asynchronously; warm them up before the greeting.
 if ("speechSynthesis" in window) speechSynthesis.getVoices();
+refreshWeather(false);
 runBoot();
