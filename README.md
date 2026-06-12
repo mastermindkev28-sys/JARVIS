@@ -14,6 +14,20 @@
 - **Threat panel**, live clock, status lights, and a Stark Industries ticker
 - **Responsive** — collapses to a single column on small screens
 
+## Personal access
+
+The terminal is locked. On first run JARVIS asks for your name and a
+personal access code; from then on the dashboard demands the code before
+booting and greets you by name. The code is stored only as a SHA-256 hash
+in your own browser — it is never in this repository — and three failed
+attempts arm the intruder protocol. Say **"lock"** or **"good night"** to
+lock the terminal, or **"change access code"** to register a new one.
+
+Note the privacy model: this repo contains only code. Your name, access
+code hash, ElevenLabs key, and voice settings live exclusively in your
+browser's localStorage, so someone else opening the same URL gets a
+blank, locked terminal of their own — never yours.
+
 ## Run it
 
 Just open `index.html` in a browser, or serve it locally:

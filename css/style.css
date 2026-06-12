@@ -28,6 +28,34 @@ body {
 
 .hidden { display: none !important; }
 
+/* ================= SECURITY LOCKOUT ================= */
+#lock-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: inherit;
+  display: flex; align-items: center; justify-content: center;
+}
+.lock-box {
+  width: min(420px, 90vw);
+  display: flex; flex-direction: column; gap: 12px;
+  text-align: center; padding: 30px 26px;
+}
+.lock-box h3 { font-size: 13px; }
+#lock-msg { font-size: 11px; letter-spacing: 2px; min-height: 14px; }
+.lock-box input {
+  background: rgba(57,196,232,0.08); color: var(--cyan-bright);
+  border: 1px solid var(--cyan-dim); border-radius: 2px;
+  font-family: var(--font); font-size: 14px; letter-spacing: 4px;
+  text-align: center; padding: 9px 8px;
+}
+.lock-box input::placeholder { color: var(--cyan-dim); letter-spacing: 3px; }
+#lock-btn {
+  padding: 9px; background: rgba(57,196,232,0.08); color: var(--cyan-bright);
+  border: 1px solid var(--cyan); border-radius: 3px;
+  font-family: var(--font); font-size: 12px; letter-spacing: 3px;
+  cursor: pointer; transition: all 0.2s;
+}
+#lock-btn:hover { background: rgba(57,196,232,0.22); box-shadow: var(--glow); }
+
 /* ================= BOOT OVERLAY ================= */
 #boot-overlay {
   position: fixed; inset: 0; z-index: 100;

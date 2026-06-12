@@ -2,6 +2,82 @@
 
 const $ = (id) => document.getElementById(id);
 
+/* ---------- security lockout ---------- */
+// The access code is stored only as a SHA-256 hash in this browser's
+// localStorage; nothing about it exists in the repository.
+async function hashCode(s) {
+  if (crypto.subtle) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("jarvis:" + s));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  // file:// in some browsers lacks crypto.subtle — degrade to a weak hash
+  let h = 5381;
+  for (const c of s) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0;
+  return "x" + h.toString(16);
+}
+
+function userName() {
+  return localStorage.getItem("jarvis-user") || "sir";
+}
+
+let lockFails = 0;
+
+function initLock() {
+  const name = localStorage.getItem("jarvis-user");
+  if (name) $("user-name").textContent = name;
+  if (localStorage.getItem("jarvis-lock") && sessionStorage.getItem("jarvis-authed") === "1") {
+    enterTerminal();
+    return;
+  }
+  if (!localStorage.getItem("jarvis-lock")) {
+    $("lock-title").textContent = "STARK INDUSTRIES SECURE TERMINAL — FIRST RUN";
+    $("lock-msg").textContent = "REGISTER YOUR IDENTITY AND ACCESS CODE";
+    $("lock-name").classList.remove("hidden");
+    $("lock-btn").textContent = "SECURE THIS TERMINAL";
+  }
+}
+
+async function submitLock() {
+  const code = $("lock-input").value;
+  const stored = localStorage.getItem("jarvis-lock");
+
+  if (!stored) {
+    if (code.length < 4) {
+      $("lock-msg").textContent = "ACCESS CODE MUST BE AT LEAST 4 CHARACTERS";
+      return;
+    }
+    const name = $("lock-name").value.trim() || "Sir";
+    localStorage.setItem("jarvis-lock", await hashCode(code));
+    localStorage.setItem("jarvis-user", name);
+    $("user-name").textContent = name;
+    sessionStorage.setItem("jarvis-authed", "1");
+    enterTerminal();
+    return;
+  }
+
+  if ((await hashCode(code)) === stored) {
+    sessionStorage.setItem("jarvis-authed", "1");
+    enterTerminal();
+  } else {
+    lockFails++;
+    $("lock-input").value = "";
+    $("lock-msg").textContent =
+      lockFails >= 3 ? "⚠ INTRUDER PROTOCOL ARMED — ACCESS DENIED" : "ACCESS DENIED — INVALID CODE";
+    document.body.classList.add("alert");
+    setTimeout(() => document.body.classList.remove("alert"), 900);
+  }
+}
+
+function enterTerminal() {
+  $("lock-overlay").remove();
+  $("boot-overlay").classList.remove("hidden");
+  runBoot();
+}
+
+$("lock-btn").addEventListener("click", submitLock);
+$("lock-input").addEventListener("keydown", (e) => { if (e.key === "Enter") submitLock(); });
+$("lock-name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("lock-input").focus(); });
+
 /* ---------- boot sequence ---------- */
 const BOOT_LINES = [
   "STARK INDUSTRIES UNIFIED OS v1.2.5",
@@ -393,7 +469,7 @@ function speak(text) {
 function greet() {
   const h = new Date().getHours();
   const part = h < 12 ? "morning" : h < 18 ? "afternoon" : "evening";
-  speak(`Good ${part}, sir. All systems are online and functioning within normal parameters.`);
+  speak(`Good ${part}, ${userName()}. All systems are online and functioning within normal parameters.`);
 }
 
 /* ---------- alert mode ---------- */
@@ -467,6 +543,17 @@ function respond(query) {
     return "Standing down, sir. Returning all systems to nominal.";
   }
   if (/self.?destruct/.test(q)) return selfDestruct();
+  if (/\block\b|log ?out|goodbye|good night/.test(q)) {
+    sessionStorage.removeItem("jarvis-authed");
+    setTimeout(() => location.reload(), 2500);
+    return `Locking the terminal. Good night, ${userName()}.`;
+  }
+  if (/(change|reset).*(access )?code/.test(q)) {
+    localStorage.removeItem("jarvis-lock");
+    sessionStorage.removeItem("jarvis-authed");
+    setTimeout(() => location.reload(), 3000);
+    return "Access code cleared, sir. The terminal will now restart so you can register a new one.";
+  }
   if (/timer/.test(q)) return parseTimer(q) || "Please specify a duration, sir. For example: set a timer for five minutes.";
   if (/full.?screen/.test(q)) {
     document.documentElement.requestFullscreen?.();
@@ -511,7 +598,7 @@ function respond(query) {
   if (/who are you|your name/.test(q))
     return `I am JARVIS — Just A Rather Very Intelligent System. At your service, sir.`;
   if (/hello|hi |hey/.test(q))
-    return `Hello, sir. How may I assist you today?`;
+    return `Hello, ${userName()}. How may I assist you today?`;
   if (/joke/.test(q))
     return `I would tell you a joke about the arc reactor, sir, but I fear it would not get a glowing reaction.`;
   if (/thank/.test(q))
@@ -599,4 +686,4 @@ if (hashKey) {
 // Re-establish the ElevenLabs uplink from a previous visit (or import).
 if (elKey) linkElevenLabs(elKey).catch(() => {});
 refreshWeather(false);
-runBoot();
+initLock();
