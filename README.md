@@ -27,7 +27,24 @@ python3 -m http.server 8000
 > permission (and a `localhost` or `https` origin). Voice *output* (JARVIS
 > speaking) works in most modern browsers.
 
-### Getting the most JARVIS-like voice
+### The real JARVIS voice (ElevenLabs)
+
+For a genuinely film-grade voice, JARVIS can speak through
+[ElevenLabs](https://elevenlabs.io) neural TTS:
+
+1. Create a free ElevenLabs account and copy your API key
+   (profile → API Keys). The free tier includes ~10k characters/month.
+2. Paste the key into the **EL UPLINK** field on the dashboard and click
+   **LINK**.
+3. JARVIS auto-selects their most British voice (*Daniel* or *George* —
+   both excellent) and the VOCAL PROFILE dropdown fills with all your
+   ElevenLabs voices, marked with ◆.
+
+The key is stored only in your browser's localStorage and sent only to
+`api.elevenlabs.io` — there is no backend. If the uplink ever fails,
+JARVIS falls back to the best browser voice automatically.
+
+### Getting the most JARVIS-like browser voice
 
 JARVIS automatically picks the most British-butler voice your system has,
 and the **VOCAL PROFILE** dropdown in the console lets you audition the

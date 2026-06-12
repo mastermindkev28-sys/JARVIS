@@ -255,28 +255,120 @@ function loadVoices() {
   voiceList.sort((a, b) => scoreVoice(b) - scoreVoice(a));
   const saved = localStorage.getItem("jarvis-voice");
   chosenVoice = voiceList.find((v) => v.name === saved) || voiceList[0];
+  rebuildVoiceDropdown();
+}
 
+/* ---------- ElevenLabs neural voice uplink ---------- */
+// With an (optional) ElevenLabs API key, JARVIS speaks through their
+// neural TTS — far closer to the films than any browser voice. The key
+// never leaves this browser: it is stored in localStorage and sent only
+// to api.elevenlabs.io. Browser voices remain the automatic fallback.
+const EL_PREFS = [/daniel/i, /george/i, /callum/i, /charlie/i, /brian/i];
+let elKey = localStorage.getItem("jarvis-el-key") || "";
+let elVoices = [];
+let chosenEl = null;
+let elAudio = null;
+
+async function linkElevenLabs(key) {
+  const r = await fetch("https://api.elevenlabs.io/v1/voices", {
+    headers: { "xi-api-key": key },
+  });
+  if (!r.ok) throw new Error("key rejected");
+  const data = await r.json();
+  elVoices = data.voices.map((v) => ({ id: v.voice_id, name: v.name }));
+  elKey = key;
+  localStorage.setItem("jarvis-el-key", key);
+
+  const saved = localStorage.getItem("jarvis-el-voice");
+  if (saved === "off") {
+    chosenEl = null;
+  } else {
+    chosenEl =
+      elVoices.find((v) => v.id === saved) ||
+      EL_PREFS.map((re) => elVoices.find((v) => re.test(v.name))).find(Boolean) ||
+      elVoices[0] || null;
+  }
+  $("el-link").textContent = "LINKED ✓";
+  $("el-link").classList.add("linked");
+  rebuildVoiceDropdown();
+}
+
+async function speakEleven(text) {
+  const r = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${chosenEl.id}?output_format=mp3_44100_128`,
+    {
+      method: "POST",
+      headers: { "xi-api-key": elKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_turbo_v2_5",
+        voice_settings: { stability: 0.5, similarity_boost: 0.8, style: 0.2 },
+      }),
+    }
+  );
+  if (!r.ok) throw new Error("TTS request failed");
+  const blob = await r.blob();
+  if (elAudio) { elAudio.pause(); URL.revokeObjectURL(elAudio.src); }
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  elAudio = new Audio(URL.createObjectURL(blob));
+  await elAudio.play();
+}
+
+$("el-link").addEventListener("click", async () => {
+  const key = $("el-key").value.trim();
+  if (!key) {
+    speak("Please paste your ElevenLabs API key first, sir. A free one is available at elevenlabs.io.");
+    return;
+  }
+  $("el-link").textContent = "…";
+  try {
+    await linkElevenLabs(key);
+    speak("Neural voice uplink established, sir. This is how I sound now.");
+  } catch {
+    $("el-link").textContent = "LINK";
+    $("el-link").classList.remove("linked");
+    speak("I'm afraid that API key was rejected, sir.");
+  }
+});
+
+/* ---------- unified voice selection ---------- */
+function rebuildVoiceDropdown() {
   const sel = $("voice-select");
   sel.innerHTML = "";
+  elVoices.forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = "el:" + v.id;
+    opt.textContent = "◆ " + v.name + " — ElevenLabs";
+    opt.selected = chosenEl && chosenEl.id === v.id;
+    sel.appendChild(opt);
+  });
   voiceList.forEach((v) => {
     const opt = document.createElement("option");
+    opt.value = "sys:" + v.name;
     opt.textContent = v.name;
-    opt.selected = v === chosenVoice;
+    opt.selected = !chosenEl && chosenVoice === v;
     sel.appendChild(opt);
   });
 }
 
 $("voice-select").addEventListener("change", (e) => {
-  const v = voiceList.find((x) => x.name === e.target.value);
-  if (!v) return;
-  chosenVoice = v;
-  localStorage.setItem("jarvis-voice", v.name);
+  const val = e.target.value;
+  if (val.startsWith("el:")) {
+    chosenEl = elVoices.find((x) => "el:" + x.id === val) || null;
+    if (chosenEl) localStorage.setItem("jarvis-el-voice", chosenEl.id);
+  } else {
+    chosenEl = null;
+    localStorage.setItem("jarvis-el-voice", "off");
+    const v = voiceList.find((x) => "sys:" + x.name === val);
+    if (v) { chosenVoice = v; localStorage.setItem("jarvis-voice", v.name); }
+  }
   speak("Vocal profile calibrated, sir. How do I sound?");
 });
 
-function speak(text) {
-  $("jarvis-line").textContent = text;
+/* ---------- speak: ElevenLabs first, browser fallback ---------- */
+function speakBrowser(text) {
   if (!("speechSynthesis" in window)) return;
+  if (elAudio) elAudio.pause();
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   if (chosenVoice) u.voice = chosenVoice;
@@ -287,6 +379,15 @@ function speak(text) {
   u.rate = 0.95;
   u.pitch = neural ? 1.0 : 0.8;
   speechSynthesis.speak(u);
+}
+
+function speak(text) {
+  $("jarvis-line").textContent = text;
+  if (elKey && chosenEl) {
+    speakEleven(text).catch(() => speakBrowser(text));
+  } else {
+    speakBrowser(text);
+  }
 }
 
 function greet() {
@@ -486,5 +587,7 @@ if ("speechSynthesis" in window) {
   loadVoices();
   speechSynthesis.onvoiceschanged = loadVoices;
 }
+// Re-establish the ElevenLabs uplink from a previous visit.
+if (elKey) linkElevenLabs(elKey).catch(() => {});
 refreshWeather(false);
 runBoot();
