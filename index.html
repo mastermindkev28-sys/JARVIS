@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. OS</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ============ BOOT SEQUENCE OVERLAY ============ -->
+  <div id="boot-overlay">
+    <div class="boot-reactor">
+      <div class="boot-ring"></div>
+      <div class="boot-core"></div>
+    </div>
+    <pre id="boot-log"></pre>
+  </div>
+
+  <!-- ============ MAIN HUD ============ -->
+  <main id="hud" class="hidden">
+
+    <!-- ===== TOP BAR ===== -->
+    <header class="top-bar">
+      <div class="brand panel">
+        <span class="brand-title">JARVIS <small>OS</small></span>
+        <span class="brand-ver">Ver 1.2.5</span>
+        <span class="brand-user">User: <b id="user-name">Sir</b></span>
+      </div>
+      <div class="status-lights panel">
+        <span class="light on"></span><span class="light on"></span>
+        <span class="light"></span><span class="light on"></span>
+        <span class="status-text" id="sys-status">ALL SYSTEMS NOMINAL</span>
+      </div>
+      <div class="clock-block panel">
+        <div id="clock" class="clock">00:00:00</div>
+        <div id="date" class="date">--</div>
+      </div>
+    </header>
+
+    <!-- ===== GRID BODY ===== -->
+    <section class="hud-grid">
+
+      <!-- LEFT COLUMN -->
+      <aside class="col col-left">
+        <div class="panel">
+          <h3>CPU CORE</h3>
+          <div class="gauge"><div class="gauge-fill" id="cpu-bar"></div></div>
+          <div class="readout"><span id="cpu-val">0</span>% LOAD</div>
+          <canvas class="wave" id="wave-cpu" width="220" height="48"></canvas>
+        </div>
+        <div class="panel">
+          <h3>MEMORY</h3>
+          <div class="gauge"><div class="gauge-fill" id="mem-bar"></div></div>
+          <div class="readout"><span id="mem-val">0</span>% ALLOCATED</div>
+          <canvas class="wave" id="wave-mem" width="220" height="48"></canvas>
+        </div>
+        <div class="panel">
+          <h3>NETWORK TRAFFIC</h3>
+          <canvas class="wave tall" id="wave-net" width="220" height="70"></canvas>
+          <div class="readout dual">
+            <span>▲ <span id="net-up">0</span> KB/s</span>
+            <span>▼ <span id="net-down">0</span> KB/s</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>AUDIO ANALYSIS</h3>
+          <canvas class="wave tall" id="wave-audio" width="220" height="70"></canvas>
+        </div>
+      </aside>
+
+      <!-- CENTER: ARC REACTOR -->
+      <section class="col col-center">
+        <div class="reactor-stage" id="reactor" title="Click to talk to JARVIS">
+          <svg class="ring ring-ticks" viewBox="0 0 400 400"></svg>
+          <svg class="ring ring-dash"  viewBox="0 0 400 400">
+            <circle cx="200" cy="200" r="178" fill="none" stroke="var(--cyan)"
+                    stroke-width="3" stroke-dasharray="40 18" opacity="0.6"/>
+          </svg>
+          <svg class="ring ring-arc" viewBox="0 0 400 400">
+            <circle cx="200" cy="200" r="150" fill="none" stroke="var(--cyan-bright)"
+                    stroke-width="6" stroke-dasharray="220 700" stroke-linecap="round"/>
+          </svg>
+          <svg class="ring ring-inner" viewBox="0 0 400 400">
+            <circle cx="200" cy="200" r="120" fill="none" stroke="var(--cyan)"
+                    stroke-width="2" stroke-dasharray="6 10" opacity="0.8"/>
+          </svg>
+          <div class="reactor-core">
+            <div class="core-glow"></div>
+            <div class="core-triangle"></div>
+          </div>
+          <div class="reactor-label" id="reactor-label">ARC REACTOR — STABLE</div>
+        </div>
+
+        <!-- voice console -->
+        <div class="panel console-panel">
+          <div class="console-line"><span class="tag">JARVIS</span> <span id="jarvis-line">Initializing…</span></div>
+          <div class="console-line dim"><span class="tag you">YOU</span> <span id="user-line">—</span></div>
+          <button id="mic-btn">◉ ENGAGE VOICE INTERFACE</button>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN -->
+      <aside class="col col-right">
+        <div class="panel weather-panel">
+          <div class="temp-big"><span id="temp">21</span>°C</div>
+          <div class="weather-desc" id="weather-desc">Fair</div>
+          <ul class="weather-meta">
+            <li>Humidity: <span id="humidity">44</span>%</li>
+            <li>Feels like: <span id="feels">20</span>°</li>
+            <li>Visibility: <span id="visibility">16.1</span> km</li>
+            <li>Wind: <span id="wind">8</span> km/h (E)</li>
+            <li>Pressure: <span id="pressure">1015.2</span> mb</li>
+            <li>Sunrise: 7:00 AM &nbsp; Sunset: 8:19 PM</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>POWER OUTPUT</h3>
+          <div class="big-readout"><span id="power-val">2.41</span> <small>GW</small></div>
+          <div class="gauge"><div class="gauge-fill alt" id="power-bar"></div></div>
+        </div>
+        <div class="panel">
+          <h3>CORE TEMPERATURE</h3>
+          <div class="big-readout"><span id="core-temp">30</span> <small>°C</small></div>
+          <canvas class="wave" id="wave-temp" width="220" height="48"></canvas>
+        </div>
+        <div class="panel">
+          <h3>THREAT ANALYSIS</h3>
+          <div class="readout ok" id="threat">NO HOSTILES DETECTED</div>
+          <canvas class="wave" id="wave-radar" width="220" height="48"></canvas>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ===== FOOTER TICKER ===== -->
+    <footer class="ticker panel">
+      <span id="ticker-text">STARK INDUSTRIES // PROPERTY OF TONY STARK // UNAUTHORIZED ACCESS WILL BE REPORTED TO PEPPER</span>
+    </footer>
+  </main>
+
+  <script src="js/jarvis.js"></script>
+</body>
+</html>
