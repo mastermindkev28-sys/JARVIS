@@ -587,7 +587,16 @@ if ("speechSynthesis" in window) {
   loadVoices();
   speechSynthesis.onvoiceschanged = loadVoices;
 }
-// Re-establish the ElevenLabs uplink from a previous visit.
+// One-click key import: a key passed in the URL fragment (#elkey=...)
+// is moved into localStorage and stripped from the address bar. URL
+// fragments are never sent to any server, so the key stays local.
+const hashKey = location.hash.match(/elkey=([^&]+)/);
+if (hashKey) {
+  elKey = decodeURIComponent(hashKey[1]);
+  localStorage.setItem("jarvis-el-key", elKey);
+  history.replaceState(null, "", location.pathname + location.search);
+}
+// Re-establish the ElevenLabs uplink from a previous visit (or import).
 if (elKey) linkElevenLabs(elKey).catch(() => {});
 refreshWeather(false);
 runBoot();
