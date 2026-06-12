@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>J.A.R.V.I.S. OS</title>
-<link rel="stylesheet" href="css/style.css?v=5">
+<link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
 
@@ -54,6 +54,22 @@
 
       <!-- LEFT COLUMN -->
       <aside class="col col-left">
+        <div class="panel market-panel">
+          <h3>MGC · MICRO GOLD <span class="mkt-src" id="mgc-src">SIM</span></h3>
+          <div class="market-row">
+            <span class="market-price" id="mgc-price">—</span>
+            <span class="market-chg" id="mgc-chg">—</span>
+          </div>
+          <canvas class="wave tall" id="chart-mgc" width="220" height="56"></canvas>
+        </div>
+        <div class="panel market-panel">
+          <h3>MNQ · MICRO NASDAQ <span class="mkt-src" id="mnq-src">SIM</span></h3>
+          <div class="market-row">
+            <span class="market-price" id="mnq-price">—</span>
+            <span class="market-chg" id="mnq-chg">—</span>
+          </div>
+          <canvas class="wave tall" id="chart-mnq" width="220" height="56"></canvas>
+        </div>
         <div class="panel">
           <h3>CPU CORE</h3>
           <div class="gauge"><div class="gauge-fill" id="cpu-bar"></div></div>
@@ -66,41 +82,32 @@
           <div class="readout"><span id="mem-val">0</span>% ALLOCATED</div>
           <canvas class="wave" id="wave-mem" width="220" height="48"></canvas>
         </div>
-        <div class="panel">
-          <h3>NETWORK TRAFFIC</h3>
-          <canvas class="wave tall" id="wave-net" width="220" height="70"></canvas>
-          <div class="readout dual">
-            <span>▲ <span id="net-up">0</span> KB/s</span>
-            <span>▼ <span id="net-down">0</span> KB/s</span>
-          </div>
-        </div>
-        <div class="panel">
-          <h3>AUDIO ANALYSIS</h3>
-          <canvas class="wave tall" id="wave-audio" width="220" height="70"></canvas>
-        </div>
       </aside>
 
       <!-- CENTER: ARC REACTOR -->
       <section class="col col-center">
         <div class="reactor-stage" id="reactor" title="Click to talk to JARVIS">
           <svg class="ring ring-ticks" viewBox="0 0 400 400"></svg>
-          <svg class="ring ring-dash"  viewBox="0 0 400 400">
-            <circle cx="200" cy="200" r="178" fill="none" stroke="var(--cyan)"
-                    stroke-width="3" stroke-dasharray="40 18" opacity="0.6"/>
+          <svg class="ring ring-outer" viewBox="0 0 400 400">
+            <circle cx="200" cy="200" r="168" fill="none" stroke="var(--cyan)" stroke-width="20"
+                    stroke-dasharray="180 14 90 14 260 14 120 14" opacity="0.7"/>
+            <circle cx="200" cy="200" r="153" fill="none" stroke="var(--cyan-bright)"
+                    stroke-width="1.5" opacity="0.5"/>
           </svg>
-          <svg class="ring ring-arc" viewBox="0 0 400 400">
-            <circle cx="200" cy="200" r="150" fill="none" stroke="var(--cyan-bright)"
-                    stroke-width="6" stroke-dasharray="220 700" stroke-linecap="round"/>
+          <svg class="ring ring-seg" viewBox="0 0 400 400">
+            <circle cx="200" cy="200" r="120" fill="none" stroke="#7fd8f2" stroke-width="18"
+                    stroke-dasharray="15 7" opacity="0.8"/>
           </svg>
-          <svg class="ring ring-inner" viewBox="0 0 400 400">
-            <circle cx="200" cy="200" r="120" fill="none" stroke="var(--cyan)"
-                    stroke-width="2" stroke-dasharray="6 10" opacity="0.8"/>
+          <svg class="ring ring-accent" viewBox="0 0 400 400">
+            <circle cx="200" cy="200" r="140" fill="none" stroke="#f5b14c" stroke-width="5"
+                    stroke-dasharray="70 130 30 650" stroke-linecap="round" opacity="0.9"/>
+            <circle cx="200" cy="200" r="104" fill="none" stroke="#f5b14c" stroke-width="3"
+                    stroke-dasharray="3 14" opacity="0.7"/>
           </svg>
-          <div class="reactor-core">
-            <div class="core-glow"></div>
-            <div class="core-triangle"></div>
+          <div class="jarvis-core">
+            <span class="jarvis-title">J.A.R.V.I.S.</span>
           </div>
-          <div class="reactor-label" id="reactor-label">ARC REACTOR — STABLE</div>
+          <div class="reactor-label" id="reactor-label">J.A.R.V.I.S. CORE — ONLINE</div>
         </div>
 
         <!-- voice console -->
@@ -159,6 +166,6 @@
     </footer>
   </main>
 
-  <script src="js/jarvis.js?v=5"></script>
+  <script src="js/jarvis.js?v=6"></script>
 </body>
 </html>

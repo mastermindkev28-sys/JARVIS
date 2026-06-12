@@ -173,28 +173,26 @@ canvas.wave { display: block; width: 100%; margin-top: 8px; opacity: 0.95; }
   cursor: pointer; user-select: none;
 }
 .ring { position: absolute; inset: 0; }
-.ring-dash  { animation: spin 24s linear infinite; }
-.ring-arc   { animation: spin 7s linear infinite reverse; }
-.ring-inner { animation: spin 14s linear infinite; }
+.ring-outer  { animation: spin 90s linear infinite; }
+.ring-seg    { animation: spin 28s linear infinite reverse; }
+.ring-accent { animation: spin 12s linear infinite; }
 
-.reactor-core {
-  position: absolute; inset: 27%;
+.jarvis-core {
+  position: absolute; inset: 31%;
   border-radius: 50%;
-  background: radial-gradient(circle, #eaffff 0%, var(--cyan-bright) 30%, var(--cyan) 60%, #0a3b52 100%);
-  box-shadow: 0 0 40px rgba(57,196,232,0.9), 0 0 120px rgba(57,196,232,0.45),
-              inset 0 0 30px rgba(255,255,255,0.8);
-  animation: pulse 3s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(10,32,46,0.92) 0%, rgba(3,12,20,0.96) 75%);
+  border: 1px solid rgba(57,196,232,0.4);
+  box-shadow: 0 0 35px rgba(57,196,232,0.3), inset 0 0 45px rgba(57,196,232,0.18);
   display: flex; align-items: center; justify-content: center;
+  animation: pulse 4s ease-in-out infinite;
 }
-.reactor-stage.listening .reactor-core { animation: pulse 0.7s ease-in-out infinite; }
-
-.core-triangle {
-  width: 0; height: 0; position: relative; top: 6%;
-  border-left: 34px solid transparent;
-  border-right: 34px solid transparent;
-  border-bottom: 58px solid rgba(255,255,255,0.95);
-  filter: drop-shadow(0 0 14px #fff);
+.jarvis-title {
+  font-size: clamp(16px, 3.4vh, 30px);
+  font-weight: bold; letter-spacing: 4px; color: #fff;
+  text-shadow: 0 0 12px rgba(155,234,255,0.95), 0 0 32px rgba(57,196,232,0.6);
 }
+.reactor-stage.listening .jarvis-core { animation: pulse 0.7s ease-in-out infinite; }
+.reactor-stage.listening .jarvis-title { animation: blink 0.8s infinite; color: var(--cyan-bright); }
 
 .reactor-label {
   position: absolute; bottom: -34px; width: 100%; text-align: center;
@@ -254,6 +252,17 @@ canvas.wave { display: block; width: 100%; margin-top: 8px; opacity: 0.95; }
 #mic-btn:hover { background: rgba(57,196,232,0.22); box-shadow: var(--glow); }
 #mic-btn.live { color: #ff5d5d; border-color: #ff5d5d; animation: blink 1s infinite; }
 
+/* ================= MARKETS ================= */
+.mkt-src { float: right; font-size: 9px; letter-spacing: 1px; opacity: 0.6; }
+.market-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.market-price {
+  font-size: 23px; color: var(--cyan-bright); text-shadow: var(--glow);
+  letter-spacing: 1px;
+}
+.market-chg { font-size: 11px; letter-spacing: 1px; }
+.market-chg.up   { color: #5dff9d; text-shadow: 0 0 8px rgba(93,255,157,0.5); }
+.market-chg.down { color: #ff5d5d; text-shadow: 0 0 8px rgba(255,93,93,0.5); }
+
 /* ================= WEATHER ================= */
 .temp-big { font-size: 42px; color: var(--cyan-bright); text-shadow: var(--glow); }
 .weather-desc { font-size: 15px; letter-spacing: 3px; margin-bottom: 8px; }
@@ -273,15 +282,14 @@ body.alert {
     linear-gradient(90deg, rgba(255,77,77,0.06) 1px, transparent 1px);
   animation: alert-flash 1.6s ease-in-out infinite;
 }
-body.alert .reactor-core {
-  background: radial-gradient(circle, #fff0f0 0%, #ffb3b3 30%, #ff4d4d 60%, #520a0a 100%);
-  box-shadow: 0 0 40px rgba(255,77,77,0.9), 0 0 120px rgba(255,77,77,0.45),
-              inset 0 0 30px rgba(255,255,255,0.8);
+body.alert .jarvis-core {
+  background: radial-gradient(circle, rgba(46,10,10,0.92) 0%, rgba(20,3,3,0.96) 75%);
+  border-color: rgba(255,77,77,0.5);
+  box-shadow: 0 0 35px rgba(255,77,77,0.4), inset 0 0 45px rgba(255,77,77,0.2);
   animation: pulse 0.8s ease-in-out infinite;
 }
-body.alert .ring-dash circle { stroke: #ff4d4d; }
-body.alert .ring-arc circle  { stroke: #ffb3b3; }
-body.alert .ring-inner circle { stroke: #ff4d4d; }
+body.alert .jarvis-title { text-shadow: 0 0 12px rgba(255,179,179,0.95), 0 0 32px rgba(255,77,77,0.6); }
+body.alert .ring-seg circle { stroke: #ff8080; }
 @keyframes alert-flash {
   0%, 100% { filter: brightness(1); }
   50%      { filter: brightness(1.18); }

@@ -6,7 +6,8 @@
 ## Features
 
 - **Boot sequence** — Stark Industries OS startup log with a spinning reactor loader
-- **Animated arc reactor** — pulsing core with counter-rotating tick, dash, and arc rings; doubles as the voice trigger
+- **J.A.R.V.I.S. ring core** — counter-rotating segmented rings with amber accent arcs around the glowing J.A.R.V.I.S. nameplate; doubles as the voice trigger
+- **Live market data** — MGC (Micro Gold) and MNQ (Micro Nasdaq) futures panels with price, daily change, and intraday sparklines from Yahoo Finance (no key; falls back to marked simulation if the uplink is blocked). Ask JARVIS "how's gold?" or "market report"
 - **Voice interface** — JARVIS greets you out loud and answers spoken commands (Web Speech API, prefers a British voice, naturally)
 - **Live telemetry** — CPU, memory, network, power output, and core temperature panels with animated gauges and oscilloscope waveforms
 - **Real weather** — live conditions from the [Open-Meteo](https://open-meteo.com/) API (no key required), located via browser geolocation with an IP-lookup fallback; falls back to simulated data offline

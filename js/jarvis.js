@@ -148,7 +148,7 @@ function drift(value, min, max, step) {
   return Math.min(max, Math.max(min, value));
 }
 
-const telemetry = { cpu: 34, mem: 58, temp: 30, power: 2.41, up: 320, down: 1840 };
+const telemetry = { cpu: 34, mem: 58, temp: 30, power: 2.41 };
 
 function updateTelemetry() {
   const t = telemetry;
@@ -156,8 +156,6 @@ function updateTelemetry() {
   t.mem  = drift(t.mem, 30, 90, 6);
   t.temp = drift(t.temp, 24, 41, 1.5);
   t.power = drift(t.power, 1.8, 3.0, 0.12);
-  t.up   = drift(t.up, 40, 900, 160);
-  t.down = drift(t.down, 200, 4000, 600);
 
   $("cpu-val").textContent = t.cpu.toFixed(0);
   $("cpu-bar").style.width = t.cpu + "%";
@@ -166,8 +164,6 @@ function updateTelemetry() {
   $("core-temp").textContent = t.temp.toFixed(0);
   $("power-val").textContent = t.power.toFixed(2);
   $("power-bar").style.width = (t.power / 3 * 100) + "%";
-  $("net-up").textContent = t.up.toFixed(0);
-  $("net-down").textContent = t.down.toFixed(0);
 }
 setInterval(updateTelemetry, 1200);
 updateTelemetry();
@@ -214,10 +210,101 @@ function makeWave(canvasId, opts) {
 
 makeWave("wave-cpu",   { mode: "noisy" });
 makeWave("wave-mem",   { mode: "sine", speed: 0.07 });
-makeWave("wave-net",   { mode: "bars" });
-makeWave("wave-audio", { mode: "sine", speed: 0.22, color: "#9beaff" });
 makeWave("wave-temp",  { mode: "sine", speed: 0.05 });
 makeWave("wave-radar", { mode: "noisy", color: "#5dff9d", speed: 0.09 });
+
+/* ---------- live market data: MGC & MNQ futures ---------- */
+// Quotes come from Yahoo Finance's chart API (no key). Browsers block
+// it with CORS, so fall back through public CORS proxies; if every
+// route fails, run a marked random-walk simulation so the panels stay
+// alive.
+const MARKETS = [
+  { sym: "MGC=F", id: "mgc", spoken: "Micro Gold" },
+  { sym: "MNQ=F", id: "mnq", spoken: "Micro NASDAQ" },
+];
+const marketData = {}; // id -> { price, chg, pct, live }
+
+function drawSpark(canvasId, closes, up) {
+  const ctx = $(canvasId).getContext("2d");
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  if (closes.length < 2) return;
+  const min = Math.min(...closes), max = Math.max(...closes), span = max - min || 1;
+  const color = up ? "#5dff9d" : "#ff5d5d";
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.shadowColor = color; ctx.shadowBlur = 6;
+  ctx.beginPath();
+  closes.forEach((c, i) => {
+    const x = (i / (closes.length - 1)) * w;
+    const y = h - 4 - ((c - min) / span) * (h - 8);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.stroke();
+}
+
+async function fetchQuote(sym) {
+  const api = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=5m&range=1d`;
+  const routes = [
+    api,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(api)}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(api)}`,
+  ];
+  for (const url of routes) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const res = (await r.json()).chart.result[0];
+      const closes = (res.indicators.quote[0].close || []).filter((v) => v != null);
+      const price = res.meta.regularMarketPrice ?? closes[closes.length - 1];
+      const prev = res.meta.chartPreviousClose ?? res.meta.previousClose ?? closes[0];
+      if (price != null && prev != null) return { price, prev, closes };
+    } catch { /* try next route */ }
+  }
+  throw new Error("all market routes failed");
+}
+
+function renderMarket(m, price, prev, closes, live) {
+  const chg = price - prev, pct = (chg / prev) * 100;
+  marketData[m.id] = { price, chg, pct, live };
+  $(m.id + "-price").textContent = price.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const sign = chg >= 0 ? "+" : "";
+  const el = $(m.id + "-chg");
+  el.textContent = `${sign}${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+  el.className = "market-chg " + (chg >= 0 ? "up" : "down");
+  $(m.id + "-src").textContent = live ? "● LIVE" : "SIM — UPLINK OFFLINE";
+  drawSpark("chart-" + m.id, closes, chg >= 0);
+}
+
+const simSeeds = { mgc: 2350, mnq: 21500 };
+function simMarket(m) {
+  const base = simSeeds[m.id];
+  const closes = [base];
+  for (let i = 1; i < 60; i++)
+    closes.push(closes[i - 1] * (1 + (Math.random() - 0.5) * 0.0015));
+  renderMarket(m, closes[closes.length - 1], base, closes, false);
+}
+
+async function refreshMarkets() {
+  for (const m of MARKETS) {
+    try {
+      const { price, prev, closes } = await fetchQuote(m.sym);
+      renderMarket(m, price, prev, closes, true);
+    } catch {
+      if (!marketData[m.id]) simMarket(m); // keep last live data if a refresh hiccups
+    }
+  }
+}
+setInterval(refreshMarkets, 60 * 1000);
+refreshMarkets();
+
+function marketLine(id, name) {
+  const d = marketData[id];
+  if (!d) return `${name} data is still loading, sir.`;
+  const dir = d.chg >= 0 ? "up" : "down";
+  const src = d.live ? "" : " Note: the market uplink is offline, so this is simulated data.";
+  return `${name} is trading at ${d.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}, ` +
+         `${dir} ${Math.abs(d.pct).toFixed(2)} percent on the day.${src}`;
+}
 
 /* ---------- live weather (Open-Meteo, no API key) ---------- */
 const WMO_CODES = {
@@ -574,6 +661,12 @@ function respond(query) {
     return "Contacting the weather satellites now, sir.";
   }
 
+  // markets (checked before "mark"/suit patterns)
+  if (/\bgold\b|mgc/.test(q)) return marketLine("mgc", "Micro Gold");
+  if (/nasdaq|mnq/.test(q)) return marketLine("mnq", "Micro NASDAQ");
+  if (/market|trading|portfolio|futures/.test(q))
+    return marketLine("mgc", "Micro Gold") + " " + marketLine("mnq", "Micro NASDAQ");
+
   // arithmetic ("what is 12 times 8")
   const math = parseMath(q);
   if (math && /what is|what's|calculate|compute|how much/.test(q)) return math;
@@ -603,7 +696,7 @@ function respond(query) {
     return `I would tell you a joke about the arc reactor, sir, but I fear it would not get a glowing reaction.`;
   if (/thank/.test(q))
     return `Always a pleasure, sir.`;
-  if (/suit|armor|mark/.test(q))
+  if (/suit|armor|\bmark\b/.test(q))
     return `The Mark 42 is currently in the workshop, sir. Shall I begin pre-flight diagnostics?`;
   if (/music/.test(q))
     return `I am afraid my speakers are tied up running diagnostics, sir. Might I suggest AC/DC, as usual?`;
@@ -635,7 +728,7 @@ function setListening(on) {
   $("reactor").classList.toggle("listening", on);
   $("mic-btn").classList.toggle("live", on);
   $("mic-btn").textContent = on ? "◉ LISTENING..." : "◉ ENGAGE VOICE INTERFACE";
-  $("reactor-label").textContent = on ? "VOICE INTERFACE ACTIVE" : "ARC REACTOR — STABLE";
+  $("reactor-label").textContent = on ? "VOICE INTERFACE ACTIVE" : "J.A.R.V.I.S. CORE — ONLINE";
 }
 
 function toggleListening() {
